@@ -1,0 +1,40 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    }
+
+#map {
+    height: 50%;
+    width: 60%;
+    }
+
+.buttons {
+    border: none;
+    color: white;
+    display: inline-block;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 12px;
+    font-family: Verdana;
+    background-color: #fff;
+    }
+
+
+path.line { 
+    stroke: steelblue;
+    stroke-width: 2;
+    fill: none;
+}
+
+.axis path, .axis line {
+    fill: none;
+    stroke: black;
+    shape-rendering: crispEdges;
+}
+
+.axis text {
+    font-family: Consolas, courier;
+    font-size: 11px;
+}

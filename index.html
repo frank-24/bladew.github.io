@@ -1,1 +1,174 @@
-Hello World!
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Crime Line Charts</title>
+        <link rel="stylesheet" type="text/css" href="css/style.css">
+        <script src="http://d3js.org/d3.v3.js"></script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=your_own_key&libraries=geometry"></script>
+    </head>
+
+    <body>
+        <!-- <div class="buttons" id="category">
+            <button onclick="change('fraud')">Fraud</button>
+            <button onclick="change('robbery')">Robbery</button>
+            <button onclick="change('runaway')">Runaway</button>
+            <button onclick="change('suicide')">Suicide</button>
+        </div>
+ -->
+        <div id="map"></div>
+        <div id = "plot_canvas"></div>
+            <script>
+                var map,
+                    area_coords = [{lat: 37.779933, lng: -122.487555}, 
+                                    {lat: 37.782376, lng: -122.408591}, 
+                                    {lat: 37.729852, lng: -122.401639},
+                                    {lat: 37.726051, lng: -122.472535}],
+                    selected_area = new google.maps.Polygon({paths: area_coords}),
+                    margin = { top: 20, right: 10, bottom: 20, left: 40 },
+          			width = 300 + margin.left + margin.right,
+          			height = 180 + margin.top + margin.bottom,
+          			dot_size = 2, dot_color = "#FFAD8F",
+                    valueline = d3.svg.line()
+                                .x(function(d) { return x(new Date(d.date.getFullYear(), 0)); })
+                                .y(function(d) { return y(d.num); });
+          			selected_category = "fraud",
+                	category = {"fraud":"data/fraud.csv",
+                            "runaway":"data/runaway.csv",
+                            "suicide":"data/suicide.csv",
+                            "arson":"data/arson.csv",
+                            "kidnapping":"data/kidnapping.csv",
+                            "prostitution":"data/prostitution.csv",
+                            "assault":"data/assault.csv",
+                            "gambling":"data/gambling.csv",
+                            "trespass":"data/trespass.csv",
+                            "robbery":"data/robbery.csv",
+                            "burglary":"data/burglary.csv"};
+
+                    map = new google.maps.Map(document.getElementById('map'), {
+                        zoom: 13,
+                        center: {lat: 37.751843, lng: -122.446185},
+                        mapTypeId: google.maps.MapTypeId.SATELLITE
+                    });
+
+                    // heatmap = new google.maps.visualization.HeatmapLayer({
+                    //     map: map
+                    // });
+
+                google.maps.event.addListener(map, 'click', function(event) {
+                    console.log(area_coords);
+                    if (area_coords.length == 4) {
+                        area_coords = [];} 
+                    area_coords.push(event.latLng);
+                    if (area_coords.length == 4) {
+                        selected_area = new google.maps.Polygon({paths: area_coords});
+                        set_data();
+                    };
+                    console.log(area_coords);
+                });
+
+                // Set the ranges
+      			var x = d3.time.scale().range([0, width - margin.right - margin.left - 5]).domain([new Date("2003-01"), new Date("2015-06")]),
+      				y = d3.scale.linear().range([height - margin.bottom - margin.top, 0]).domain([0,400]),
+	      			// Define the axes
+    	  			xAxis = d3.svg.axis().scale(x).ticks(d3.time.year).tickFormat(d3.time.format("%y")).orient("bottom"),
+					yAxis = d3.svg.axis().scale(y).tickFormat(d3.format('.0f')).orient("left").ticks(10);
+
+                // set up all svg
+                for (var key in category) {
+                    if (category.hasOwnProperty(key)) {
+                        svg_plot_canvas = d3.select("#plot_canvas").append("svg")
+                                            .attr("width", width)
+                                            .attr("height", height)
+                                            .attr("id", key)
+                                            .append("g")
+                                            .attr("transform", "translate(" + margin.left + ',' + margin.top +")");
+
+                        svg_plot_canvas.append("text").text(key).attr("x", (width - margin.right - margin.left) / 2).attr("y", 0).attr("text-anchor", "middle");
+                        svg_plot_canvas.append("g")
+                            .attr("transform", "translate(0," + (height - margin.bottom - margin.top) +")")
+                            .attr("class", "axis")
+                            .attr("id", "xAxis")
+                            .call(xAxis);
+
+                        svg_plot_canvas.append("g")
+                            .attr("class", "axis")
+                            .attr("id", "yAxis")
+                            .call(yAxis);
+
+                    }
+                }
+
+                function set_data() {
+                    for (var key in category) {
+                        if (category.hasOwnProperty(key)) {
+                            set_data_onetype(key, d3.select("svg#"+key).select("g"));
+                        }
+                    }
+
+                }
+
+                function set_data_onetype(selected_category, svg_plot_canvas) {
+                    d3.csv(category[selected_category], 
+                    function(d) {
+                        if (google.maps.geometry.poly.containsLocation(new google.maps.LatLng(Number(d.Y), Number(d.X)), selected_area)) {
+                            return [{date:new Date(d.Dates), num :1}]
+                        };
+                    }, 
+                    function(error, data) {
+                    	if (error != null || data.length == 0) {
+                    		console.log(error); 
+                    		return};
+
+                    	data = data.reduce(function (a, b) {
+                    		if (a[a.length-1].date.getFullYear() == b[b.length-1].date.getFullYear()) {
+                    			a[a.length-1].num += b[b.length-1].num;
+                    			return a;
+                    		} else{
+                    			return a.concat(b);
+                    		};
+                    	});
+
+                        // update the y axis
+                    	var max_y = d3.max(data, function(d) { return d.num; });
+        				y.domain([0, max_y]);
+        				yAxis.scale(y);
+        				svg_plot_canvas.select("#yAxis").call(yAxis);
+
+                    	// console.log(data)
+                        // Add the valueline path.
+                        line = svg_plot_canvas.selectAll("path.line").data([data])
+                                        .attr("class", "line")
+                                        .attr("d", valueline(data));
+                        line.enter()
+                            .append("path")
+                            .attr("class", "line")
+                            .attr("d", valueline(data));
+            //         	dots = svg_plot_canvas.selectAll(".dot").data(data, function(d,i) {return d.num + "-" + d.date.getFullYear();});
+        				// dots.exit().remove();
+        				// dots.enter()
+        				// 	.append("circle")
+        				// 	.attr("class", "dot")
+        				// 	.attr("id", selected_category)
+        				// 	.attr("cx", function(d, i) { return x(new Date(d.date.getFullYear(),0));})
+        				// 	.attr("cy", function(d) { return y(d.num);})
+        				// 	.attr("r", dot_size)
+        				// 	.attr("fill", dot_color);
+                    }
+                    );
+                }
+                set_data();
+            </script>
+
+        <h2>Time-Crime Line Chart for different types</h2>
+<!--         
+        <h3>Description</h3>
+        <p>This is the crime heatmap for San Francisco. Click the button on the top of the page to choose the category and year to plot. One thing that should be noticed is that we do sampling on the dataset rather than input whole dataset for any category. Because the visual performance of Google Map is reduced when there is too much data, sampling is needed.</p> -->
+        
+        <h3>Reference</h3>
+            <ol>
+            <li>ContainsLocation API/example: https://developers.google.com/maps/documentation/javascript/examples/poly-containsLocation</li>
+            <li>Data source: https://www.kaggle.com/c/sf-crime</li>
+            </ol>
+    </body>
+</html>
