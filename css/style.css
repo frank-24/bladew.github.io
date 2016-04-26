@@ -38,3 +38,8 @@ path.line {
     font-family: Consolas, courier;
     font-size: 11px;
 }
+
+div#side{
+    width:30%;
+    float:right;
+}
