@@ -5,7 +5,7 @@
         <title>Crime Line Charts</title>
         <link rel="stylesheet" type="text/css" href="css/style.css">
         <script src="http://d3js.org/d3.v3.js"></script>
-        <script src="https://maps.googleapis.com/maps/api/js?key=your_own_key&libraries=geometry"></script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD3LxJV9iIW3FzxhbccjNy9W1Trg-yBvBE&libraries=geometry"></script>
     </head>
 
     <body>
@@ -20,15 +20,18 @@
         <div id = "plot_canvas"></div>
             <script>
                 var map,
+                    start_date= new Date("2003-01"), end_date = new Date("2015-06"),
+                    cleaned_data = [],
+                    months = d3.time.month.range(start_date, end_date, 1),
                     area_coords = [{lat: 37.779933, lng: -122.487555}, 
                                     {lat: 37.782376, lng: -122.408591}, 
                                     {lat: 37.729852, lng: -122.401639},
                                     {lat: 37.726051, lng: -122.472535}],
                     selected_area = new google.maps.Polygon({paths: area_coords}),
-                    margin = { top: 20, right: 10, bottom: 20, left: 40 },
-          			width = 300 + margin.left + margin.right,
-          			height = 180 + margin.top + margin.bottom,
-          			dot_size = 2, dot_color = "#FFAD8F",
+                    margin = { top: 20, right: 60, bottom: 20, left: 40 },
+          			width = 1280 + margin.left + margin.right,
+          			height = 720 + margin.top + margin.bottom,
+          			// dot_size = 2, dot_color = "#FFAD8F",
                     valueline = d3.svg.line()
                                 .x(function(d) { return x(new Date(d.date.getFullYear(), 0)); })
                                 .y(function(d) { return y(d.num); });
@@ -36,15 +39,14 @@
                 	category = {"fraud":"data/fraud.csv",
                             "runaway":"data/runaway.csv",
                             "suicide":"data/suicide.csv",
-                            "arson":"data/arson.csv",
                             "kidnapping":"data/kidnapping.csv",
                             "prostitution":"data/prostitution.csv",
                             "assault":"data/assault.csv",
-                            "gambling":"data/gambling.csv",
+                            // "gambling":"data/gambling.csv",
                             "trespass":"data/trespass.csv",
                             "robbery":"data/robbery.csv",
-                            "burglary":"data/burglary.csv"};
-
+                            "burglary":"data/burglary.csv"},
+                    color_book = d3.scale.category20().domain(d3.keys(category));
                     map = new google.maps.Map(document.getElementById('map'), {
                         zoom: 13,
                         center: {lat: 37.751843, lng: -122.446185},
@@ -68,23 +70,20 @@
                 });
 
                 // Set the ranges
-      			var x = d3.time.scale().range([0, width - margin.right - margin.left - 5]).domain([new Date("2003-01"), new Date("2015-06")]),
-      				y = d3.scale.linear().range([height - margin.bottom - margin.top, 0]).domain([0,400]),
+      			var x = d3.time.scale().range([0, width - margin.right - margin.left - 5]).domain([start_date, end_date]),
+      				y = d3.scale.linear().range([height - margin.bottom - margin.top, 0]).domain([0,600]),
 	      			// Define the axes
-    	  			xAxis = d3.svg.axis().scale(x).ticks(d3.time.year).tickFormat(d3.time.format("%y")).orient("bottom"),
+    	  			xAxis = d3.svg.axis().scale(x).ticks(d3.time.month, 3).tickFormat(d3.time.format("%y")).orient("bottom"),
 					yAxis = d3.svg.axis().scale(y).tickFormat(d3.format('.0f')).orient("left").ticks(10);
 
                 // set up all svg
-                for (var key in category) {
-                    if (category.hasOwnProperty(key)) {
                         svg_plot_canvas = d3.select("#plot_canvas").append("svg")
                                             .attr("width", width)
                                             .attr("height", height)
-                                            .attr("id", key)
                                             .append("g")
                                             .attr("transform", "translate(" + margin.left + ',' + margin.top +")");
 
-                        svg_plot_canvas.append("text").text(key).attr("x", (width - margin.right - margin.left) / 2).attr("y", 0).attr("text-anchor", "middle");
+                        // svg_plot_canvas.append("text").text(key).attr("x", (width - margin.right - margin.left) / 2).attr("y", 0).attr("text-anchor", "middle");
                         svg_plot_canvas.append("g")
                             .attr("transform", "translate(0," + (height - margin.bottom - margin.top) +")")
                             .attr("class", "axis")
@@ -96,19 +95,23 @@
                             .attr("id", "yAxis")
                             .call(yAxis);
 
-                    }
-                }
+                var area = d3.svg.area()
+                            .x(function(d) { return x(d.date); })
+                            .y0(function(d) { return y(d.y0); })
+                            .y1(function(d) { return y(d.y0 + d.y); }),
+                    stack = d3.layout.stack().values(function(d) {return d.values;}).x(function(d) { return x(d.date); })
+                            .y(function(d) { return d.num; })
 
                 function set_data() {
                     for (var key in category) {
                         if (category.hasOwnProperty(key)) {
-                            set_data_onetype(key, d3.select("svg#"+key).select("g"));
+                            set_data_onetype(key);
                         }
                     }
 
                 }
 
-                function set_data_onetype(selected_category, svg_plot_canvas) {
+                function set_data_onetype(selected_category) {
                     d3.csv(category[selected_category], 
                     function(d) {
                         if (google.maps.geometry.poly.containsLocation(new google.maps.LatLng(Number(d.Y), Number(d.X)), selected_area)) {
@@ -116,12 +119,23 @@
                         };
                     }, 
                     function(error, data) {
-                    	if (error != null || data.length == 0) {
+                    	if (error != null) {
                     		console.log(error); 
                     		return};
 
+                        for (var i = 0; i < months.length; i++) {
+                            data.push([{date:months[i], num :0}]);
+                        };
+
+                        data.sort(function(a, b){
+                                    // Compare the 2 dates
+                                    if(a[0].date < b[0].date) return -1;
+                                    if(a[0].date > b[0].date) return 1;
+                                    return 0;
+                                });
+
                     	data = data.reduce(function (a, b) {
-                    		if (a[a.length-1].date.getFullYear() == b[b.length-1].date.getFullYear()) {
+                    		if (a[a.length-1].date.getFullYear() == b[b.length-1].date.getFullYear() && a[a.length-1].date.getMonth() == b[b.length-1].date.getMonth()) {
                     			a[a.length-1].num += b[b.length-1].num;
                     			return a;
                     		} else{
@@ -129,21 +143,31 @@
                     		};
                     	});
 
-                        // update the y axis
-                    	var max_y = d3.max(data, function(d) { return d.num; });
-        				y.domain([0, max_y]);
-        				yAxis.scale(y);
-        				svg_plot_canvas.select("#yAxis").call(yAxis);
+                        var new_data = {type: selected_category, values: data}
 
-                    	// console.log(data)
-                        // Add the valueline path.
-                        line = svg_plot_canvas.selectAll("path.line").data([data])
-                                        .attr("class", "line")
-                                        .attr("d", valueline(data));
-                        line.enter()
-                            .append("path")
-                            .attr("class", "line")
-                            .attr("d", valueline(data));
+                        if (cleaned_data.length == Object.keys(category).length) {
+                            cleaned_data = [];} 
+                            cleaned_data.push(new_data);
+                        if (cleaned_data.length == Object.keys(category).length) {
+                            plot_area_graph();
+                        };
+                        console.log(cleaned_data);
+
+                        // update the y axis
+            //         	var max_y = d3.max(data, function(d) { return d.num; });
+        				// y.domain([0, max_y]);
+        				// yAxis.scale(y);
+        				// svg_plot_canvas.select("#yAxis").call(yAxis);
+
+            //         	// console.log(data)
+            //             // Add the valueline path.
+            //             line = svg_plot_canvas.selectAll("path.line").data([data])
+            //                             .attr("class", "line")
+            //                             .attr("d", valueline(data));
+            //             line.enter()
+            //                 .append("path")
+            //                 .attr("class", "line")
+            //                 .attr("d", valueline(data));
             //         	dots = svg_plot_canvas.selectAll(".dot").data(data, function(d,i) {return d.num + "-" + d.date.getFullYear();});
         				// dots.exit().remove();
         				// dots.enter()
@@ -157,6 +181,24 @@
                     }
                     );
                 }
+
+
+                function plot_area_graph () {
+                    console.log(stack(cleaned_data));
+                    var layers = svg_plot_canvas.selectAll(".layer").data(stack(cleaned_data), function(d,i){ return i + '-' + d.values[0].y0 + '-' + d.values[0].y; });
+                    layers.exit().remove();
+                    var new_layers = layers.enter().append("g").attr("class", "layer");
+                    new_layers    
+                            .append("path")
+                            .attr("d", function(d) { return area(d.values); })
+                            .style("fill", function(d, i) { return color_book(d.type); });
+                    new_layers.append("text")
+                            .text(function(d) {return d.type;})
+                            .attr("text-anchor", "start")
+                            .attr("x", width - margin.right - margin.left)
+                            .attr("y", function(d, i) {console.log(d.values[d.values.length - 1].y0);return y(d.values[d.values.length - 3].y0 + i * 10); });
+                }
+
                 set_data();
             </script>
 
@@ -167,7 +209,7 @@
         
         <h3>Reference</h3>
             <ol>
-            <li>ContainsLocation API/example: https://developers.google.com/maps/documentation/javascript/examples/poly-containsLocation</li>
+            <li>Area graph API/example: https://bl.ocks.org/mbostock/3885211</li>
             <li>Data source: https://www.kaggle.com/c/sf-crime</li>
             </ol>
     </body>
