@@ -21,7 +21,7 @@
         <div id = "plot_canvas"></div>
         <script>
             var map,
-                    start_date= new Date("2006-01"), end_date = new Date("2007-01"),
+                    start_date= new Date("2003-01"), end_date = new Date("2015-01"),
                     cleaned_data = [],
                     // months = d3.time.month.range(start_date, end_date, 1),
                     // area_coords = [{lat: 37.779933, lng: -122.487555}, 
@@ -48,7 +48,7 @@
                             "trespass":"data/trespass.csv",
                             "robbery":"data/robbery.csv",
                             },
-                    normlize = false,
+                    normlize = true,
                     color_book = d3.scale.ordinal()
     .range(["#FF6666","#FF9966","#FFCC33","#FFFF99","#CCFF99","#99CC66","#99CCCC","#0099FF","#CC99FF","#990099"]).domain(d3.keys(category));
                     // map = new google.maps.Map(document.getElementById('map'), {
@@ -93,7 +93,7 @@
                     // Define the axes
                     // xAxis = d3.svg.axis().scale(x).ticks(d3.time.month, 3).tickFormat(d3.time.format("%y")).orient("bottom"),
                     xAxis = d3.svg.axis().scale(x).ticks(7).orient("bottom"),
-                    yAxis = d3.svg.axis().scale(y).tickFormat(d3.format('.0f')).orient("left").ticks(10);
+                    yAxis = d3.svg.axis().scale(y).tickFormat(d3.format('.2f')).orient("left").ticks(10);
 
                 // set up all svg
                         svg_plot_canvas = d3.select("#plot_canvas").append("svg")
@@ -118,16 +118,16 @@
       .data(Object.keys(category))
     .enter().append("g")
       .attr("class", "legend")
-      .attr("transform", function(d, i) { return "translate(0," + i * margin.right/3 + ")"; });
+      .attr("transform", function(d, i) { return "translate(0," + i * margin.right/2 + ")"; });
 
   legend.append("rect")
-      .attr("x", width - margin.right * 2.5)
-      .attr("width", margin.right / 2)
-      .attr("height", margin.right / 3)
+      .attr("x", width - margin.right * 2.6)
+      .attr("width", 20)
+      .attr("height", 20)
       .style("fill", function(d) {return color_book(d)});
 
   legend.append("text")
-      .attr("x", width - margin.right * 2)
+      .attr("x", width - margin.right * 2.25)
       .attr("y", 9)
       .attr("dy", ".35em")
       .style("text-anchor", "start")
